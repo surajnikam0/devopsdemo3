@@ -1,12 +1,11 @@
 pipeline {
     agent any
-    
+
     environment {
         DOCKER_IMAGE = "my-demo-app"  // Name of your docker image
-        DOCKER_REGISTRY = "docker.io" // Docker registry (e.g., docker.io, amazon ECR, etc.)
         DOCKER_TAG = "latest"         // Tag for the image
     }
-    
+
     stages {
         stage('Checkout Code') {
             steps {
@@ -14,16 +13,17 @@ pipeline {
                 git url: 'https://github.com/surajnikam0/devopsdemo3.git', branch: 'master'
             }
         }
-        
-        stage('Build Docker Image') {
+
+        stage('Test') {
             steps {
                 script {
-                    // Build the Docker image using the Dockerfile in your repo
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                    // Add testing commands here. Example:
+                    echo "Running tests..."
+                    // You can replace this with actual test commands, e.g., npm test, pytest, etc.
                 }
             }
         }
-        
+
         stage('Deploy') {
             steps {
                 script {
@@ -33,7 +33,7 @@ pipeline {
             }
         }
     }
-    
+
     post {
         always {
             // Clean up
@@ -47,3 +47,4 @@ pipeline {
         }
     }
 }
+
