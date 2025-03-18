@@ -2,33 +2,62 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "my-demo-app"  // Name of your docker image
-        DOCKER_TAG = "latest"         // Tag for the image
+        IMAGE_NAME = 'flask-app'
+        CONTAINER_NAME = 'flask-app-test'
+        PORT = 5000
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                // Checkout the code from your SCM (e.g., GitHub)
-                git url: 'https://github.com/surajnikam0/devopsdemo3.git', branch: 'master'
+                // Checkout the repository
+                git 'https://github.com/surajnikam0/devopsdemo3.git'  // Replace with your repo URL
             }
         }
 
-        stage('Test') {
+        stage('Build Docker Image') {
             steps {
                 script {
-                    // Add testing commands here. Example:
-                    echo "Running tests..."
-                    // You can replace this with actual test commands, e.g., npm test, pytest, etc.
+                    // Build the Docker image
+                    sh "docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} ."
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Run Docker Container') {
             steps {
                 script {
-                    // Example of running the docker container, adjust to your deployment
-                    sh "docker run -d -p 5000:5000 ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                    // Run the container in detached mode (-d)
+                    sh "docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${IMAGE_NAME}:${BUILD_NUMBER}"
+                }
+            }
+        }
+
+        stage('Test Application') {
+            steps {
+                script {
+                    // Wait for a few seconds to give the app time to start
+                    sh 'sleep 10'
+
+                    // Test if the Flask application is running using curl
+                    def response = sh(script: "curl --write-out '%{http_code}' --silent --output /dev/null http://localhost:${PORT}", returnStdout: true).trim()
+
+                    // Check the response code, expect 200 for a healthy app
+                    if (response == '200') {
+                        echo "Application is running successfully!"
+                    } else {
+                        error "Application is not running correctly. HTTP response code: ${response}"
+                    }
+                }
+            }
+        }
+
+        stage('Clean Up') {
+            steps {
+                script {
+                    // Stop and remove the container
+                    sh "docker stop ${CONTAINER_NAME}"
+                    sh "docker rm ${CONTAINER_NAME}"
                 }
             }
         }
@@ -36,15 +65,8 @@ pipeline {
 
     post {
         always {
-            // Clean up
-            cleanWs()
-        }
-        success {
-            echo "Pipeline finished successfully!"
-        }
-        failure {
-            echo "Pipeline failed. Please check the logs."
+            // Clean up images after the pipeline finishes to save disk space
+            sh "docker rmi ${IMAGE_NAME}:${BUILD_NUMBER}"
         }
     }
 }
-
